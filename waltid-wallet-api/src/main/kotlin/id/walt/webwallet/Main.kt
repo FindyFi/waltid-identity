@@ -1,7 +1,5 @@
 package id.walt.webwallet
 
-import id.walt.webwallet.web.controllers.auth
-import id.walt.webwallet.web.controllers.configureSecurity
 import id.walt.web.controllers.issuers
 import id.walt.webwallet.config.ConfigManager
 import id.walt.webwallet.config.WebConfig
@@ -39,11 +37,12 @@ fun main(args: Array<String>) {
 
     val webConfig = ConfigManager.getConfig<WebConfig>()
     log.info { "Starting web server (binding to ${webConfig.webHost}, listening on port ${webConfig.webPort})..." }
-    embeddedServer(CIO, port = webConfig.webPort, host = webConfig.webHost, module = Application::module)
-        .start(wait = true)
-    /*log.info { "Starting web server (binding to 0.0.0.0, listening on port 4545)..." }
-    embeddedServer(CIO, port = 4545, host = "0.0.0.0", module = Application::module)
-        .start(wait = true)*/
+    embeddedServer(
+        CIO,
+        port = webConfig.webPort,
+        host = webConfig.webHost,
+        module = Application::module
+    ).start(wait = true)
 }
 
 fun Application.configurePlugins() {
@@ -65,17 +64,22 @@ fun Application.module() {
     notifications()
 
     // Wallet routes
-    credentials()
-    dids()
+    accounts()
     keys()
+    dids()
+    credentials()
     exchange()
     history()
     web3accounts()
-    accounts()
     nfts()
     issuers()
     eventLogs()
     manifest()
     categories()
     reports()
+    settings()
+    reasons()
+
+    // DID Web Registry
+    didRegistry()
 }
