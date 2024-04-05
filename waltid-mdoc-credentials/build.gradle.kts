@@ -1,5 +1,3 @@
-import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
-
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
@@ -100,7 +98,7 @@ kotlin {
             val hasMavenAuth = secretMavenUsername.isNotEmpty() && secretMavenPassword.isNotEmpty()
             if (hasMavenAuth) {
                 maven {
-                    url = uri("https://maven.walt.id/repository/waltid/")
+                    url = uri("https://maven.waltid.dev/releases")
                     credentials {
                         username = secretMavenUsername
                         password = secretMavenPassword

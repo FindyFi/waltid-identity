@@ -23,9 +23,10 @@ class UniResolverTest {
     fun `given a did String, when calling resolve, then the result is a valid did document`(
         did: String, document: String
     ) = runTest {
-        val result = sut.resolve(did)
-        assertEquals(true, result.isSuccess)
-        assertEquals(document, result.getOrNull()?.toString())
+        println("Resolving: $did")
+        val result = sut.resolve(did).getOrThrow()
+
+        check(document == result.toString()) { "Non equal: $document" }
     }
 
     @ParameterizedTest
