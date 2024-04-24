@@ -51,6 +51,7 @@ kotlin {
         }
     }
     js(IR) {
+        moduleName = "dids"
         /*browser {
             commonWebpackConfig {
                 cssSupport {
@@ -72,12 +73,12 @@ kotlin {
                 implementation("io.github.optimumcode:json-schema-validator:0.0.8")
 
                 // Ktor client
-                implementation("io.ktor:ktor-client-core:2.3.8")
+                implementation("io.ktor:ktor-client-core:2.3.10")
                 implementation("io.ktor:ktor-client-serialization:2.3.8")
-                implementation("io.ktor:ktor-client-content-negotiation:2.3.8")
-                implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.8")
-                implementation("io.ktor:ktor-client-json:2.3.9")
-                implementation("io.ktor:ktor-client-logging:2.3.8")
+                implementation("io.ktor:ktor-client-content-negotiation:2.3.10")
+                implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.10")
+                implementation("io.ktor:ktor-client-json:2.3.10")
+                implementation("io.ktor:ktor-client-logging:2.3.10")
 
                 // Coroutines
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
@@ -95,7 +96,7 @@ kotlin {
                 implementation("net.thauvin.erik.urlencoder:urlencoder-lib:1.5.0")
 
                 // Logging
-                implementation("io.github.oshai:kotlin-logging:6.0.3")
+                implementation("io.github.oshai:kotlin-logging:6.0.4")
 
             }
         }
@@ -108,7 +109,7 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 // Ktor client
-                implementation("io.ktor:ktor-client-cio:2.3.8")
+                implementation("io.ktor:ktor-client-okhttp:2.3.10")
 
                 // Logging
                 implementation("org.slf4j:slf4j-simple:2.0.12")
@@ -126,7 +127,7 @@ kotlin {
                 implementation(kotlin("test"))
                 implementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
                 implementation("io.ktor:ktor-server-test-host:2.3.8")
-                implementation("io.ktor:ktor-server-content-negotiation:2.3.8")
+                implementation("io.ktor:ktor-server-content-negotiation:2.3.10")
                 implementation("io.ktor:ktor-server-netty:2.3.8")
             }
         }

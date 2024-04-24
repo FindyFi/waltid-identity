@@ -13,19 +13,9 @@ group = "id.walt"
 
 repositories {
     mavenCentral()
-    /*maven("https://jitpack.io") {
-        content {
-            includeGroup("com.github.multiformats")
-        }
-    }*/
-    maven("https://repo.danubetech.com/repository/maven-public/")
     maven("https://maven.waltid.dev/releases") {
         content {
             includeGroup("id.walt")
-            includeGroup("id.walt.servicematrix")
-            //includeGroup("info.weboftrust")
-            includeGroup("decentralized-identity")
-            //includeGroup("com.danubetech")
         }
     }
     mavenLocal()
@@ -74,18 +64,39 @@ kotlin {
 //        isMingwX64 -> mingwX64("native")
 //        else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
 //    }
-    val ktor_version = "2.3.8"
+    val ktor_version = "2.3.10"
     val HOPLITE_VERSION = "2.8.0.RC3"
 
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+                // Coroutines
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
-                implementation("io.ktor:ktor-http:$ktor_version")
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
-                implementation(project(":waltid-sdjwt"))
+
+                // HTTP
+                implementation("io.ktor:ktor-client-core:$ktor_version")
+                implementation("io.ktor:ktor-client-content-negotiation:$ktor_version")
+                implementation("io.ktor:ktor-serialization-kotlinx-json:$ktor_version")
+
+
+                // JSON
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+
+                // walt.id
+                implementation(project(":waltid-crypto"))
+                implementation(project(":waltid-mdoc-credentials"))
+                implementation(project(":waltid-did"))
+
+                // -- Multiplatform --
+                // Multiplatform / UUID
                 implementation("app.softwork:kotlinx-uuid-core:0.0.22")
+
+                // Multiplatform / Date & time
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
+
+                // Multiplatform / Hashes
+                implementation(project.dependencies.platform("org.kotlincrypto.hash:bom:0.4.0"))
+                implementation("org.kotlincrypto.hash:sha2")
             }
         }
         val commonTest by getting {
@@ -95,16 +106,12 @@ kotlin {
                 implementation(project(":waltid-did"))
                 implementation(project(":waltid-verifiable-credentials"))
                 implementation("io.kotest:kotest-assertions-core:5.8.0")
-
                 implementation("io.kotest:kotest-assertions-json:5.8.0")
-
-                implementation("io.github.microutils:kotlin-logging:1.12.5")
             }
         }
         val jvmMain by getting {
             dependencies {
-                implementation("io.ktor:ktor-client-java:$ktor_version")
-                implementation("org.sqids:sqids:0.1.0")
+                implementation("io.ktor:ktor-client-cio:$ktor_version")
             }
         }
         val jvmTest by getting {
@@ -124,7 +131,7 @@ kotlin {
                 //}
                 implementation("org.bouncycastle:bcprov-lts8on:2.73.4") // for secp256k1 (which was removed with Java 17)
                 implementation("org.bouncycastle:bcpkix-lts8on:2.73.4") // PEM import
-                implementation("io.github.oshai:kotlin-logging-jvm:6.0.3")
+                implementation("io.github.oshai:kotlin-logging-jvm:6.0.9")
 
                 implementation("io.ktor:ktor-server-core-jvm:$ktor_version")
                 implementation("io.ktor:ktor-server-netty-jvm:$ktor_version")
@@ -133,30 +140,19 @@ kotlin {
                 implementation("io.ktor:ktor-server-content-negotiation:$ktor_version")
                 implementation("io.ktor:ktor-client-core:$ktor_version")
                 implementation("io.ktor:ktor-client-cio:$ktor_version")
-                implementation("io.ktor:ktor-client-java:$ktor_version")
                 implementation("io.ktor:ktor-client-auth:$ktor_version")
-                implementation("io.ktor:ktor-client-okhttp:$ktor_version")
                 implementation("io.ktor:ktor-client-content-negotiation:$ktor_version")
                 implementation("io.ktor:ktor-serialization-kotlinx-json:$ktor_version")
                 implementation("io.ktor:ktor-client-logging-jvm:$ktor_version")
-                implementation("com.sksamuel.hoplite:hoplite-core:2.7.5")
-                implementation("com.sksamuel.hoplite:hoplite-yaml:2.7.5")
-                implementation("com.sksamuel.hoplite:hoplite-hikaricp:2.7.5")
-                implementation("org.yaml:snakeyaml:2.2")
-                implementation("org.xerial:sqlite-jdbc:3.44.1.0")
-
-                // Config
-                implementation("com.sksamuel.hoplite:hoplite-core:${HOPLITE_VERSION}")
-                implementation("com.sksamuel.hoplite:hoplite-hocon:${HOPLITE_VERSION}")
-                // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-coroutines-slf4j
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-slf4j:1.8.0")
-                // https://mvnrepository.com/artifact/org.jetbrains.kotlin/kotlin-stdlib
-                implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.20")
+                implementation("io.ktor:ktor-client-okhttp:$ktor_version")
+
             }
         }
         val jsMain by getting {
             dependencies {
                 implementation(npm("jose", "~4.14.4"))
+                implementation("io.ktor:ktor-client-js:$ktor_version")
             }
         }
         val jsTest by getting {
@@ -164,6 +160,7 @@ kotlin {
         }
 //        val nativeMain by getting
 //        val nativeTest by getting
+        // Add for native: implementation("io.ktor:ktor-client-cio:$ktor_version")
     }
 
     publishing {

@@ -4,8 +4,9 @@ import TestUtils
 import id.walt.crypto.utils.JsonUtils.toJsonElement
 import id.walt.oid4vc.data.dif.PresentationDefinition
 import id.walt.webwallet.db.models.WalletCredential
+import id.walt.webwallet.usecase.exchange.FilterData
 import id.walt.webwallet.usecase.exchange.PresentationDefinitionFilterParser
-import id.walt.webwallet.usecase.exchange.TypeFilter
+import id.walt.webwallet.utils.JsonUtils
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.datetime.Clock
@@ -14,7 +15,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.uuid.UUID
-import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -25,8 +25,10 @@ class FilterPresentationDefinitionMatchStrategyTest {
     private val sut = FilterPresentationDefinitionMatchStrategy(filterParserMock)
     private val presentationDefinition =
         PresentationDefinition.fromJSON(JsonObject(mapOf("input_descriptors" to emptyArray<String>().toJsonElement())))
-    private val filters =
-        Json.decodeFromString<List<List<TypeFilter>>>(TestUtils.loadResource("presentation-definition/filters.json"))
+    private val vc1Filter =
+        Json.decodeFromString<List<FilterData>>(TestUtils.loadResource("presentation-definition/filters/filter-vc1.json"))
+    private val patternFilter =
+        Json.decodeFromString<List<FilterData>>(TestUtils.loadResource("presentation-definition/filters/filter-pattern.json"))
     private val credentials = listOf(
         WalletCredential(
             wallet = UUID(),
@@ -48,7 +50,10 @@ class FilterPresentationDefinitionMatchStrategyTest {
             id = "primitive-type",
             document = """
                 {
-                    "type": "VerifiableCredential#1"
+                    "type": "VerifiableCredential#1",
+                    "credentialSubject": {
+                        "firstName": "name"
+                    }
                 }
             """.trimIndent(),
             disclosures = null,
@@ -57,27 +62,43 @@ class FilterPresentationDefinitionMatchStrategyTest {
         ),
     )
 
-    @BeforeTest
-    fun setup() {
-        every { filterParserMock.parse(any()) } returns listOf(filters[0])
-    }
-
     @Test
     fun `match array type`() {
+        every { filterParserMock.parse(any()) } returns vc1Filter
         val result = sut.match(credentials = listOf(credentials[0]), presentationDefinition = presentationDefinition)
         assertEquals(expected = 1, actual = result.size)
         assertEquals(
             expected = "VerifiableCredential#1",
-            actual = result[0].parsedDocument!!["type"]!!.jsonArray.last().jsonPrimitive.content
+            actual = JsonUtils.tryGetData(result[0].parsedDocument!!, "type")!!.jsonArray.last().jsonPrimitive.content
         )
     }
 
     @Test
     fun `match primitive type`() {
+        every { filterParserMock.parse(any()) } returns vc1Filter
         val result = sut.match(credentials = listOf(credentials[1]), presentationDefinition = presentationDefinition)
         assertEquals(expected = 1, actual = result.size)
         assertEquals(
-            expected = "VerifiableCredential#1", actual = result[0].parsedDocument!!["type"]!!.jsonPrimitive.content
+            expected = "VerifiableCredential#1",
+            actual = JsonUtils.tryGetData(result[0].parsedDocument!!, "type")!!.jsonPrimitive.content
+        )
+    }
+
+    @Test
+    fun `match constraint primitive type`() {
+        every { filterParserMock.parse(any()) } returns patternFilter
+        val result = sut.match(credentials = listOf(credentials[1]), presentationDefinition = presentationDefinition)
+        assertEquals(expected = 1, actual = result.size)
+        assertEquals(
+            expected = "VerifiableCredential#1",
+            actual = JsonUtils.tryGetData(result[0].parsedDocument!!, "type")!!.jsonPrimitive.content
+        )
+        assertEquals(
+            expected = "name",
+            actual = JsonUtils.tryGetData(
+                result[0].parsedDocument!!,
+                "credentialSubject.firstName"
+            )!!.jsonPrimitive.content
         )
     }
 }

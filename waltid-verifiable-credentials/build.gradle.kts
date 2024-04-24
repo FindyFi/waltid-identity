@@ -51,6 +51,7 @@ kotlin {
         }
     }
     js(IR) {
+        moduleName = "verifiable-credentials"
         /*browser {
             commonWebpackConfig {
                 cssSupport {
@@ -72,12 +73,12 @@ kotlin {
                 implementation("io.github.optimumcode:json-schema-validator:0.0.8")
 
                 // Ktor client
-                implementation("io.ktor:ktor-client-core:2.3.8")
+                implementation("io.ktor:ktor-client-core:2.3.10")
                 implementation("io.ktor:ktor-client-serialization:2.3.8")
-                implementation("io.ktor:ktor-client-content-negotiation:2.3.8")
-                implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.8")
-                implementation("io.ktor:ktor-client-json:2.3.9")
-                implementation("io.ktor:ktor-client-logging:2.3.8")
+                implementation("io.ktor:ktor-client-content-negotiation:2.3.10")
+                implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.10")
+                implementation("io.ktor:ktor-client-json:2.3.10")
+                implementation("io.ktor:ktor-client-logging:2.3.10")
 
                 // Coroutines
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
@@ -87,7 +88,7 @@ kotlin {
                 implementation("app.softwork:kotlinx-uuid-core:0.0.22")
 
                 // Loggin
-                implementation("io.github.oshai:kotlin-logging:6.0.3")
+                implementation("io.github.oshai:kotlin-logging:6.0.4")
 
                 // walt.id
                 api(project(":waltid-crypto"))
@@ -104,7 +105,7 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 // Ktor client
-                implementation("io.ktor:ktor-client-cio:2.3.8")
+                implementation("io.ktor:ktor-client-cio:2.3.10")
 
                 // Logging
                 implementation("org.slf4j:slf4j-simple:2.0.12")
