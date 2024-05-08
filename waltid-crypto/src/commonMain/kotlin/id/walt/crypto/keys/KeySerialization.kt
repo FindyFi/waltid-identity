@@ -2,6 +2,7 @@ package id.walt.crypto.keys
 
 import id.walt.crypto.keys.jwk.JWKKey
 import id.walt.crypto.keys.oci.OCIKey
+import id.walt.crypto.keys.oci.OCIKeyRestApi
 import id.walt.crypto.keys.tse.TSEKey
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
@@ -23,6 +24,7 @@ object KeySerialization {
         polymorphic(Key::class) {
             subclass(JWKKey::class)
             subclass(TSEKey::class)
+            subclass(OCIKeyRestApi::class)
             subclass(OCIKey::class)
         }
     }
@@ -33,6 +35,7 @@ object KeySerialization {
     }
 
     fun serializeKey(key: Key): String = keySerializationJson.encodeToString(key)
+    @Suppress("NON_EXPORTABLE_TYPE")
     fun serializeKeyToJson(key: Key): JsonElement = keySerializationJson.encodeToJsonElement(key)
 
     @JvmBlocking

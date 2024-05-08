@@ -26,13 +26,7 @@ java {
 suspendTransform {
     enabled = true
     includeRuntime = true
-    /*jvm {
-
-    }
-    js {
-
-    }*/
-    useJsDefault()
+    useDefault()
 }
 
 
@@ -41,6 +35,14 @@ kotlin {
 }
 
 kotlin {
+    targets.configureEach {
+        compilations.configureEach {
+            compilerOptions.configure {
+                freeCompilerArgs.add("-Xexpect-actual-classes")
+            }
+        }
+    }
+
     jvm {
         compilations.all {
             kotlinOptions.jvmTarget = "15" // JVM got Ed25519 at version 15
@@ -112,7 +114,7 @@ kotlin {
                 implementation("io.ktor:ktor-client-okhttp:2.3.10")
 
                 // Logging
-                implementation("org.slf4j:slf4j-simple:2.0.12")
+                implementation("org.slf4j:slf4j-simple:2.0.13")
 
                 // Json canonicalization
                 implementation("io.github.erdtman:java-json-canonicalization:1.1")

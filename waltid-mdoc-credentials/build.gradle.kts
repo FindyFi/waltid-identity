@@ -12,6 +12,14 @@ repositories {
 }
 
 kotlin {
+    targets.configureEach {
+        compilations.configureEach {
+            compilerOptions.configure {
+                freeCompilerArgs.add("-Xexpect-actual-classes")
+            }
+        }
+    }
+
     jvm {
         jvmToolchain(16)
         withJava()
@@ -66,7 +74,7 @@ kotlin {
         }
         val jvmTest by getting {
             dependencies {
-                implementation("org.bouncycastle:bcprov-lts8on:2.73.4")
+                implementation("org.bouncycastle:bcprov-lts8on:2.73.6")
                 implementation("org.bouncycastle:bcpkix-lts8on:2.73.4")
                 implementation("io.mockk:mockk:1.13.2")
 
