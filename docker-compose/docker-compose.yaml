@@ -4,7 +4,7 @@ services:
   #   environment:
   #     POSTGRES_PASSWORD: secret
   wallet-api:
-    image: waltid/wallet-api:latest
+    image: waltid/wallet-api@sha256:bee553f2b6a3df9ea48a2371e2848f3dca5921032602ec2c03e5256d80cf92d8
     build:
       context: ../
       dockerfile: waltid-wallet-api/Dockerfile
@@ -15,25 +15,25 @@ services:
 
   issuer-api:
     platform: linux/x86_64
-    image: waltid/issuer-api:latest
+    image: waltid/issuer-api@sha256:d9facf7c35cf552d5a849ce53215fed69cb07fb6c908f01ba902f948616f80a4
     volumes:
       - ./issuer-api/config:/waltid-issuer-api/config
 
   verifier-api:
     platform: linux/x86_64
-    image: waltid/verifier-api:latest
+    image: waltid/verifier-api@sha256:a8ed6a77e5490e7d70e4ca64040b718656b7a83477d097aa73c4a081c7321e52
     volumes:
       - ./verifier-api/config:/waltid-verifier-api/config
 
   waltid-web-wallet:
-    image: waltid/waltid-web-wallet:latest
+    image: waltid/waltid-web-wallet@sha256:6aadbd3d95bd1bd1ea00d0251493637aa7f512dd2c86a5342148eb7f0d9001cc
     environment:
       NUXT_PUBLIC_ISSUER_CALLBACK_URL: "http://localhost:$WALLET_FRONTEND_PORT"
       PORT: $WALLET_FRONTEND_PORT
 
   web-portal:
     platform: linux/x86_64
-    image: waltid/portal:latest
+    image: waltid/portal@sha256:97553ff09eea9acd415a8189ff25cec8f60f5c8d7c794118e364028c4e966e59
     environment:
       NEXT_PUBLIC_VC_REPO: "http://localhost:$VC_REPO_PORT"
       NEXT_PUBLIC_ISSUER: "http://localhost:$ISSUER_API_PORT"
@@ -43,7 +43,7 @@ services:
 
   vc-repo:
     platform: linux/x86_64
-    image: waltid/vc-repository:latest
+    image: waltid/vc-repository@sha256:26d8588ab25f28f73f2d1727e2d3ade55d72b4154b23bbc74743a5375fba87ec
     environment:
       PORT: $VC_REPO_PORT
 
