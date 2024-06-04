@@ -1,7 +1,7 @@
 package id.walt.webwallet.db
 
+import com.zaxxer.hikari.HikariDataSource
 import id.walt.webwallet.config.ConfigManager
-import id.walt.webwallet.config.DatasourceConfiguration
 import id.walt.webwallet.config.DatasourceJsonConfiguration
 import id.walt.webwallet.db.models.*
 import id.walt.webwallet.service.account.AccountsService
@@ -27,24 +27,22 @@ import kotlin.random.Random
 
 object Db {
 
+    private lateinit var datasourceConfig: DatasourceJsonConfiguration
     private val log = KotlinLogging.logger { }
-
-    lateinit var datasourceConfig: DatasourceConfiguration
 
     internal const val SQLITE_PREFIX = "jdbc:sqlite:"
 
     private fun connect() {
-        val jdbcUrl = ConfigManager.getConfig<DatasourceJsonConfiguration>().jdbcUrl
+        datasourceConfig = ConfigManager.getConfig<DatasourceJsonConfiguration>()
 
-        if (jdbcUrl?.contains("sqlite") == true) {
-            log.info { "Will use sqlite database (${jdbcUrl}), working directory: ${Path(".").absolutePathString()}" }
+        if (datasourceConfig.hikariDataSource.jdbcUrl?.contains("sqlite") == true) {
+            log.info { "Will use sqlite database (${datasourceConfig.hikariDataSource.jdbcUrl}), working directory: ${Path(".").absolutePathString()}" }
         }
 
-        datasourceConfig = ConfigManager.getConfig<DatasourceConfiguration>()
-        val hikariDataSourceConfig = datasourceConfig.hikariDataSource
+        val hikariDataSourceConfig = HikariDataSource(datasourceConfig.hikariDataSource.toHikariConfig())
 
         // connect
-        log.info { "Connecting to database at \"${hikariDataSourceConfig.jdbcUrl}\"..." }
+        log.info { "Connecting to database at \"${datasourceConfig.hikariDataSource.jdbcUrl}\"..." }
 
         Database.connect(hikariDataSourceConfig)
         TransactionManager.manager.defaultIsolationLevel =
@@ -115,7 +113,6 @@ object Db {
             recreateDatabase()
         } else {
             transaction {
-                SchemaUtils.drop(WalletCredentialCategoryMap, WalletCategory, WalletIssuers)// migration
                 SchemaUtils.createMissingTablesAndColumns(*tables)
             }
         }

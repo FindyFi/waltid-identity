@@ -1,38 +1,31 @@
 package id.walt.webwallet.config
 
-import com.zaxxer.hikari.HikariDataSource
 import id.walt.webwallet.db.Db
+import id.walt.webwallet.db.SerializableHikariConfiguration
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.Serializable
 import kotlin.io.path.Path
 import kotlin.io.path.createParentDirectories
 import kotlin.io.path.notExists
 
+@Serializable
 data class DatabaseConfiguration(
     val database: String
 ) : WalletConfig
 
-data class DatasourceConfiguration(
-    val hikariDataSource: HikariDataSource,
-    val recreateDatabaseOnStart: Boolean = false
-) : WalletConfig
-
+@Serializable
 data class DatasourceJsonConfiguration(
-    val hikariDataSource: JsonObject,
+    val hikariDataSource: SerializableHikariConfiguration,
     val recreateDatabaseOnStart: Boolean = false
 ) : WalletConfig {
 
     companion object {
-        private val log = KotlinLogging.logger {  }
+        private val log = KotlinLogging.logger { }
     }
 
-    val jdbcUrl by lazy { hikariDataSource.jsonObject["jdbcUrl"]?.jsonPrimitive?.content }
-
     init {
-        if (jdbcUrl?.startsWith(Db.SQLITE_PREFIX) == true) {
-            val path = Path(jdbcUrl!!.removePrefix(Db.SQLITE_PREFIX))
+        if (hikariDataSource.jdbcUrl?.startsWith(Db.SQLITE_PREFIX) == true) {
+            val path = Path(hikariDataSource.jdbcUrl.removePrefix(Db.SQLITE_PREFIX))
             if (path.notExists()) {
                 log.info { "Creating directory for sqlite database: $path" }
                 path.createParentDirectories()
