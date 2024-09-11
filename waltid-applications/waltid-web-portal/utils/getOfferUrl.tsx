@@ -1,0 +1,124 @@
+import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
+import {AvailableCredential, CredentialFormats, DIDMethods, DIDMethodsConfig} from '@/types/credentials';
+
+const getOfferUrl = async (credentials: Array<AvailableCredential>, NEXT_PUBLIC_VC_REPO: string, NEXT_PUBLIC_ISSUER: string, authenticationMethod?: string, vpRequestValue?: string,  vpProfile?: string) => {
+  const data = await fetch(`${NEXT_PUBLIC_ISSUER}/.well-known/openid-credential-issuer`).then(data => {
+    return data.json();
+  });
+  const credential_configurations_supported = data.credential_configurations_supported;
+
+  const payload = await Promise.all(credentials.map(async (c) => {
+    c = {...c, selectedFormat: c.selectedFormat ?? CredentialFormats[0], selectedDID: c.selectedDID ?? DIDMethods[0]};
+
+    const offer = { ...c.offer, id: uuidv4() };
+    const mapping = await (await fetch(`${NEXT_PUBLIC_VC_REPO}/api/mapping/${c.id}`).then(data => {
+      return data.json();
+    }).catch(err => {
+      return null;
+    }));
+
+    let payload: {
+      'issuerDid': string,
+      'issuerKey': { "type": string, "jwk": object },
+      credentialConfigurationId: string,
+      credentialData: any,
+      mapping?: any,
+      selectiveDisclosure?: any,
+      authenticationMethod?: string,
+      vpRequestValue?: string,
+      vpProfile?: string
+    } = {
+      'issuerDid': DIDMethodsConfig[c.selectedDID as keyof typeof DIDMethodsConfig].issuerDid,
+      'issuerKey': DIDMethodsConfig[c.selectedDID as keyof typeof DIDMethodsConfig].issuerKey,
+      credentialConfigurationId: Object.keys(credential_configurations_supported).find(key => key === c.id + "_jwt_vc_json") as string,
+      credentialData: offer
+    }
+
+    if (c.selectedFormat === "SD-JWT + W3C VC") {
+      payload.selectiveDisclosure = {
+        "fields": {
+          "credentialSubject": {
+            sd: false,
+            children: {
+              fields: {}
+            }
+          }
+        }
+      }
+      for (const key in offer.credentialSubject) {
+        if (typeof offer.credentialSubject[key] === 'string') {
+          payload.selectiveDisclosure.fields.credentialSubject.children.fields[key] = {
+            sd: true
+          }
+        }
+      }
+    }
+
+    if (c.selectedFormat === "SD-JWT + IETF SD-JWT VC"){
+
+      // Hack - remove the following fields as they used for w3c only
+      delete payload.credentialData["@context"];
+      delete payload.credentialData["type"];
+      delete payload.credentialData["validFrom"];
+      delete payload.credentialData["expirationDate"];
+      delete payload.credentialData["issuanceDate"];
+      delete payload.credentialData["issued"];
+      delete payload.credentialData["issuer"];
+
+      // Hack - replace the "mapping" object with the new one
+      // delete payload.mapping;
+
+      payload.mapping = {
+        id: "<uuid>",
+        iat: "<timestamp-seconds>",
+        nbf: "<timestamp-seconds>",
+        exp: "<timestamp-in-seconds:365d>"
+      };
+
+      payload.credentialConfigurationId = Object.keys(credential_configurations_supported).find(key => key === c.id + "_vc+sd-jwt") as string;
+      payload.selectiveDisclosure = {
+        "fields": {
+          "credentialSubject": {
+            sd: false,
+            children: {
+              fields: {}
+            }
+          }
+        }
+      }
+      for (const key in offer.credentialSubject) {
+        if (typeof offer.credentialSubject[key] === 'string') {
+          payload.selectiveDisclosure.fields.credentialSubject.children.fields[key] = {
+            sd: true
+          }
+        }
+      }
+    }
+    if (authenticationMethod) {
+      payload.authenticationMethod = authenticationMethod;
+    }
+
+    if (vpRequestValue) {
+      payload.vpRequestValue = vpRequestValue;
+    }
+
+    if (vpProfile) {
+      payload.vpProfile = vpProfile;
+    }
+
+    // If true, return the payload as is
+    if (credentials[0]?.selectedFormat === "SD-JWT + IETF SD-JWT VC") {
+      return payload;
+    }
+
+    // Otherwise, return the payload with mapping if mapping exists, or just payload
+    return mapping ? { ...payload, mapping } : payload;
+  }));
+
+
+  const issueUrl = NEXT_PUBLIC_ISSUER + `/openid4vc/${credentials.length === 1 && (credentials[0].selectedFormat === "SD-JWT + W3C VC" || credentials[0].selectedFormat === "SD-JWT + IETF SD-JWT VC") ? "sdjwt" : "jwt"}/${(payload.length > 1 ? 'issueBatch' : 'issue')}`;
+  return axios.post(issueUrl, payload.length > 1 ? payload : payload[0]);
+}
+
+export { getOfferUrl };
