@@ -101,7 +101,7 @@ services:
       POSTGRES_USER: $DB_USERNAME
       POSTGRES_PASSWORD: $DB_PASSWORD
     volumes:
-      - wallet-api-db:/waltid-wallet-api/data
+      - wallet-api-db:/var/lib/postgresql/data 
     ports:
       - $POSTGRES_DB_PORT:5432 #TODO: tcp/udp proxy with caddy
 
