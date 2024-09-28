@@ -11,6 +11,8 @@ import id.walt.commons.persistence.ConfiguredPersistence
 import id.walt.credentials.verification.VerificationPolicy
 import id.walt.credentials.verification.Verifier
 import id.walt.credentials.verification.models.PolicyRequest
+import id.walt.credentials.verification.models.PolicyResultSurrogate
+import id.walt.credentials.verification.models.PresentationResultEntrySurrogate
 import id.walt.credentials.verification.models.PresentationVerificationResponseSurrogate
 import id.walt.credentials.verification.policies.*
 import id.walt.credentials.verification.policies.vp.HolderBindingPolicy
@@ -18,6 +20,7 @@ import id.walt.credentials.verification.policies.vp.MaximumCredentialsPolicy
 import id.walt.credentials.verification.policies.vp.MinimumCredentialsPolicy
 import id.walt.crypto.keys.Key
 import id.walt.crypto.keys.jwk.JWKKey
+import id.walt.crypto.utils.JsonUtils.toJsonElement
 import id.walt.did.dids.DidService
 import id.walt.did.dids.DidUtils
 import id.walt.mdoc.COSECryptoProviderKeyInfo
@@ -33,6 +36,7 @@ import id.walt.mdoc.mdocauth.DeviceAuthentication
 import id.walt.oid4vc.OpenID4VP
 import id.walt.oid4vc.data.*
 import id.walt.oid4vc.data.dif.PresentationDefinition
+import id.walt.oid4vc.data.dif.VCFormat
 import id.walt.oid4vc.providers.CredentialVerifierConfig
 import id.walt.oid4vc.providers.OpenIDCredentialVerifier
 import id.walt.oid4vc.providers.PresentationSession
@@ -175,9 +179,23 @@ object OIDCVerifierService : OpenIDCredentialVerifier(
 
         return when (session.openId4VPProfile) {
             OpenId4VPProfile.ISO_18013_7_MDOC -> verifyMdoc(tokenResponse, session)
-            OpenId4VPProfile.HAIP -> runBlocking { verifySdJwtVC(tokenResponse, session) }
+            OpenId4VPProfile.HAIP ->  runBlocking { verifySdJwtVC(tokenResponse, session) }
             else -> if(SDJwtVC.isSdJwtVCPresentation(vpToken)) {
-                runBlocking { verifySdJwtVC(tokenResponse, session) }
+                val success = runBlocking {
+                     verifySdJwtVC(tokenResponse, session)
+                }
+                policyResults[session.id] = PresentationVerificationResponseSurrogate(
+                    results = listOf(
+                        PresentationResultEntrySurrogate(
+                            vpToken, listOf(
+                                PolicyResultSurrogate(
+                                    policy = "default", isSuccess = success, result = "success".toJsonElement()
+                                )
+                            )
+                        )
+                    ), time = Duration.ZERO, policiesRun = 1
+                )
+                success
             } else {
                 val results = runBlocking {
                     Verifier.verifyPresentation(
@@ -233,8 +251,8 @@ object OIDCVerifierService : OpenIDCredentialVerifier(
 
     private suspend fun resolveIssuerKeyFromSdJwt(sdJwt: SDJwtVC): Key {
         val kid = sdJwt.keyID ?: randomUUID()
-        return if(DidUtils.isDidUrl(kid)) {
-            DidService.resolveToKey(kid).getOrThrow()
+        return if(!sdJwt.issuer.isNullOrEmpty() && DidUtils.isDidUrl(sdJwt.issuer!!)) {
+            DidService.resolveToKey(sdJwt.issuer!!).getOrThrow()
         } else {
             sdJwt.header.get("x5c")?.jsonArray?.last()?.let {
                 return JWKKey.importPEM(it.jsonPrimitive.content).getOrThrow().let { JWKKey(it.jwk, kid) }

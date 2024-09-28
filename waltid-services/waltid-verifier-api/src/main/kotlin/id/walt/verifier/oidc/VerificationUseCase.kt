@@ -11,6 +11,7 @@ import id.walt.credentials.verification.policies.JwtSignaturePolicy
 import id.walt.crypto.keys.KeyGenerationRequest
 import id.walt.crypto.keys.KeyManager
 import id.walt.crypto.keys.KeyType
+import id.walt.crypto.utils.JsonUtils.toJsonElement
 import id.walt.mdoc.COSECryptoProviderKeyInfo
 import id.walt.oid4vc.data.ClientIdScheme
 import id.walt.oid4vc.data.OpenId4VPProfile
@@ -21,7 +22,7 @@ import id.walt.oid4vc.providers.PresentationSession
 import id.walt.oid4vc.responses.TokenResponse
 import id.walt.sdjwt.JWTCryptoProvider
 import id.walt.sdjwt.SimpleJWTCryptoProvider
-import io.github.oshai.kotlinlogging.KotlinLogging
+import io.klogging.logger
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.http.*
@@ -33,17 +34,16 @@ import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import java.security.spec.PKCS8EncodedKeySpec
 import java.security.spec.X509EncodedKeySpec
-import java.util.*
+import java.util.Base64
 
 class VerificationUseCase(
     val http: HttpClient, cryptoProvider: JWTCryptoProvider,
 ) {
-    private val logger = KotlinLogging.logger {}
-    fun createSession(
+    private val logger = logger("Verification")
+    suspend fun createSession(
         vpPoliciesJson: JsonElement?,
         vcPoliciesJson: JsonElement?,
         requestCredentialsJson: JsonElement,
-        presentationDefinitionJson: JsonElement?,
         responseMode: ResponseMode,
         responseType: ResponseType? = ResponseType.VpToken,
         successRedirectUri: String?,
@@ -53,25 +53,20 @@ class VerificationUseCase(
         stateId: String?,
         openId4VPProfile: OpenId4VPProfile = OpenId4VPProfile.DEFAULT,
         walletInitiatedAuthState: String? = null,
-        trustedRootCAs: JsonArray? = null
+        trustedRootCAs: JsonArray? = null,
     ) = let {
         val vpPolicies = vpPoliciesJson?.jsonArray?.parsePolicyRequests() ?: listOf(PolicyRequest(JwtSignaturePolicy()))
 
         val vcPolicies = vcPoliciesJson?.jsonArray?.parsePolicyRequests() ?: listOf(PolicyRequest(JwtSignaturePolicy()))
 
-        val requestCredentialsArr = requestCredentialsJson.jsonArray
-
-        val requestedTypes = requestCredentialsArr.map {
+        val requestedCredentials = requestCredentialsJson.jsonArray.map {
             when (it) {
-                is JsonPrimitive -> it.contentOrNull
-                is JsonObject -> it["credential"]?.jsonPrimitive?.contentOrNull
+                is JsonObject -> Json.decodeFromJsonElement<RequestedCredential>(it)
                 else -> throw IllegalArgumentException("Invalid JSON type for requested credential: $it")
-            } ?: throw IllegalArgumentException("Invalid VC type for requested credential: $it")
+            }
         }
 
-        val presentationDefinition =
-            (presentationDefinitionJson?.let { PresentationDefinition.fromJSON(it.jsonObject) })
-                ?: PresentationDefinition.primitiveGenerationFromVcTypes(requestedTypes, openId4VPProfile)
+        val presentationDefinition = PresentationDefinition(inputDescriptors = requestedCredentials.map { it.toInputDescriptor() })
 
         logger.debug { "Presentation definition: " + presentationDefinition.toJSON() }
 
@@ -88,10 +83,8 @@ class VerificationUseCase(
             trustedRootCAs = trustedRootCAs?.map { it.jsonPrimitive.content }
         )
 
-        val specificPolicies = requestCredentialsArr.filterIsInstance<JsonObject>().associate {
-            (it["credential"]
-                ?: throw BadRequestException("No `credential` name supplied in `request_credentials`.")).jsonPrimitive.content to (it["policies"]
-                ?: throw BadRequestException("No `policies` supplied in `request_credentials`.")).jsonArray.parsePolicyRequests()
+        val specificPolicies = requestedCredentials.filter { !it.policies.isNullOrEmpty() }.associate {
+            it.id to it.policies!!.parsePolicyRequests()
         }
 
         OIDCVerifierService.sessionVerificationInfos[session.id] = OIDCVerifierService.SessionVerificationInformation(
@@ -111,9 +104,35 @@ class VerificationUseCase(
         session
     }
 
+    suspend fun createSession(
+        vpPoliciesJson: JsonElement?,
+        vcPoliciesJson: JsonElement?,
+        presentationDefinitionJson: JsonObject,
+        responseMode: ResponseMode,
+        responseType: ResponseType? = ResponseType.VpToken,
+        successRedirectUri: String?,
+        errorRedirectUri: String?,
+        statusCallbackUri: String?,
+        statusCallbackApiKey: String?,
+        stateId: String?,
+        openId4VPProfile: OpenId4VPProfile = OpenId4VPProfile.DEFAULT,
+        walletInitiatedAuthState: String? = null,
+        trustedRootCAs: JsonArray? = null,
+    ): PresentationSession {
+        return createSession(
+            vpPoliciesJson, vcPoliciesJson,
+            requestCredentialsJson = JsonArray(Json.decodeFromJsonElement<PresentationDefinition>(presentationDefinitionJson).inputDescriptors.map {
+                RequestedCredential(inputDescriptor = it, policies = null).toJsonElement()
+            }), responseMode, responseType, successRedirectUri, errorRedirectUri, statusCallbackUri, statusCallbackApiKey, stateId,
+            openId4VPProfile, walletInitiatedAuthState, trustedRootCAs
+        )
+    }
+
     fun getSession(sessionId: String): PresentationSession = sessionId.let { OIDCVerifierService.getSession(it) }
 
-    fun verify(sessionId: String, tokenResponseParameters: Map<String, List<String>>): Result<String> {
+    data class FailedVerificationException(val redirectUrl: String?, override val cause: Throwable?, override val message: String = cause?.message ?: "Verification failed") : IllegalArgumentException()
+
+    suspend fun verify(sessionId: String, tokenResponseParameters: Map<String, List<String>>): Result<String> {
         logger.debug { "Verifying session $sessionId" }
         val session = OIDCVerifierService.getSession(sessionId)
         val tokenResponse = when (TokenResponse.isDirectPostJWT(tokenResponseParameters)) {
@@ -142,21 +161,26 @@ class VerificationUseCase(
         val presentationSession = maybePresentationSessionResult.getOrThrow()
         if (presentationSession.verificationResult == true) {
             val redirectUri = sessionVerificationInfo.successRedirectUri?.replace("\$id", session.id) ?: ""
+            logger.debug { "Presentation is successful, redirecting to: $redirectUri" }
             return Result.success(redirectUri)
         } else {
             val policyResults = OIDCVerifierService.policyResults[session.id]
             val redirectUri = sessionVerificationInfo.errorRedirectUri?.replace("\$id", session.id)
+
+            logger.debug { "Presentation failed, redirecting to: $redirectUri" }
 
             if (redirectUri != null) {
                 return Result.failure(Exception(redirectUri))
             }
 
             return if (policyResults == null) {
-                Result.failure(Exception("Verification policies did not succeed"))
+                Result.failure(FailedVerificationException(redirectUri, IllegalArgumentException("Verification policies did not succeed")))
             } else {
                 val failedPolicies =
                     policyResults.results.flatMap { it.policyResults.map { it } }.filter { !it.isSuccess }
-                Result.failure(IllegalArgumentException("Verification policies did not succeed: ${failedPolicies.joinToString { it.policy + " (${it.error})" }}"))
+                val errorCause = IllegalArgumentException("Verification policies did not succeed: ${failedPolicies.joinToString { it.policy + " (${it.error})" }}")
+
+                Result.failure(FailedVerificationException(redirectUri, errorCause))
             }
         }
     }
@@ -204,7 +228,7 @@ class VerificationUseCase(
 
     private fun getClientIdScheme(
         openId4VPProfile: OpenId4VPProfile,
-        defaultClientIdScheme: ClientIdScheme
+        defaultClientIdScheme: ClientIdScheme,
     ): ClientIdScheme {
         return when (openId4VPProfile) {
             OpenId4VPProfile.ISO_18013_7_MDOC -> ClientIdScheme.X509SanDns
@@ -234,8 +258,11 @@ object LspPotentialInteropEvent {
             "-----END PRIVATE KEY-----\n"
     const val POTENTIAL_ISSUER_KEY_ID = "potential-lsp-issuer-key-01"
     val POTENTIAL_ISSUER_CRYPTO_PROVIDER_INFO = loadPotentialIssuerKeys()
-    val POTENTIAL_JWT_CRYPTO_PROVIDER = SimpleJWTCryptoProvider(JWSAlgorithm.ES256,
-        ECDSASigner(ECKey.parseFromPEMEncodedObjects(POTENTIAL_ISSUER_PRIV + POTENTIAL_ISSUER_PUB).toECKey()), ECDSAVerifier(ECKey.parseFromPEMEncodedObjects(POTENTIAL_ISSUER_PUB).toECKey()))
+    val POTENTIAL_JWT_CRYPTO_PROVIDER = SimpleJWTCryptoProvider(
+        JWSAlgorithm.ES256,
+        ECDSASigner(ECKey.parseFromPEMEncodedObjects(POTENTIAL_ISSUER_PRIV + POTENTIAL_ISSUER_PUB).toECKey()),
+        ECDSAVerifier(ECKey.parseFromPEMEncodedObjects(POTENTIAL_ISSUER_PUB).toECKey())
+    )
 
     fun readKeySpec(pem: String): ByteArray {
         val publicKeyPEM = pem
