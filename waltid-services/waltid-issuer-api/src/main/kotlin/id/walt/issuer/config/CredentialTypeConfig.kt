@@ -39,6 +39,7 @@ data class CredentialTypeConfig(
         "AlpsTourReservation" to vc("VerifiableCredential", "VerifiableAttestation", "AlpsTourReservation"),
         "EducationalID" to vc("VerifiableCredential", "VerifiableAttestation", "EducationalID"),
         "HotelReservation" to vc("VerifiableCredential", "VerifiableAttestation", "HotelReservation"),
+        "IdentityCredential" to vc("VerifiableCredential", "VerifiableAttestation", "IdentityCredential"),
         "Iso18013DriversLicenseCredential" to vc("VerifiableCredential", "VerifiableAttestation", "Iso18013DriversLicenseCredential"),
         "TaxReceipt" to vc("VerifiableCredential", "VerifiableAttestation", "TaxReceipt"),
         "VerifiablePortableDocumentA1" to vc("VerifiableCredential", "VerifiableAttestation", "VerifiablePortableDocumentA1"),
@@ -97,7 +98,7 @@ data class CredentialTypeConfig(
                     CredentialFormat.entries.associate { format ->
                         "${entry.key}_${format.value}" to CredentialSupported(
                             format = format,
-                            cryptographicBindingMethodsSupported = setOf("did"),
+                            cryptographicBindingMethodsSupported = if (format == CredentialFormat.sd_jwt_vc) setOf("jwk") else setOf("did"),
                             credentialSigningAlgValuesSupported = setOf("EdDSA", "ES256", "ES256K", "RSA"),
                             credentialDefinition = if (format != CredentialFormat.sd_jwt_vc && format != CredentialFormat.mso_mdoc ) CredentialDefinition(type = type)  else null,
                             vct = if (format == CredentialFormat.sd_jwt_vc) baseUrl.plus("/${entry.key}") else null,

@@ -1,9 +1,9 @@
 package id.walt.issuer.issuance
 
 import id.walt.commons.interop.LspPotentialInterop
+import id.walt.credentials.utils.VCFormat
 import id.walt.crypto.keys.KeyType
 import id.walt.issuer.lspPotential.LspPotentialIssuanceInterop
-import id.walt.oid4vc.data.dif.VCFormat
 import io.github.smiley4.ktorswaggerui.dsl.routes.ValueExampleDescriptorDsl
 import kotlinx.serialization.json.*
 
@@ -849,6 +849,31 @@ object IssuanceExamples {
                         "managementEndpoint": "entaftlvaaemy-management.kms.eu-frankfurt-1.oraclecloud.com",
                         "cryptoEndpoint": "entaftlvaaemy-crypto.kms.eu-frankfurt-1.oraclecloud.com",
                         "signingKeyPem": "-----BEGIN PRIVATE KEY-----\n\n-----END PRIVATE KEY-----\n"
+                    }
+                },
+                "did":
+                {
+                    "method": "jwk"
+                }
+            }
+        """.trimIndent()
+    )
+
+
+    //language=JSON
+    val issuerOnboardingRequestAwsRestApiExample = typedValueExampleDescriptorDsl<OnboardingRequest>(
+        """
+            {
+                "key":
+                {
+                    "backend": "aws",
+                    "keyType": "secp256r1",
+                    "config":
+                    {
+                        "accessKeyId": "AKIA........QU5F",
+                        "secretAccessKey": "6YDr..................7Sr",
+                        "region": "eu-central-1"
+                      
                     }
                 },
                 "did":

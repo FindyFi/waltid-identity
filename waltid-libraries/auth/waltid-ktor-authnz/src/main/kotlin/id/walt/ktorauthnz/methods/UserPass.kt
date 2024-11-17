@@ -1,10 +1,13 @@
 package id.walt.ktorauthnz.methods
 
 import id.walt.ktorauthnz.AuthContext
-import id.walt.ktorauthnz.accounts.identifiers.AccountIdentifier
-import id.walt.ktorauthnz.accounts.identifiers.UsernameIdentifier
+import id.walt.ktorauthnz.KtorAuthnzManager
+import id.walt.ktorauthnz.accounts.identifiers.methods.AccountIdentifier
+import id.walt.ktorauthnz.accounts.identifiers.methods.UsernameIdentifier
 import id.walt.ktorauthnz.exceptions.authCheck
-import id.walt.ktorauthnz.methods.data.AuthMethodStoredData
+import id.walt.ktorauthnz.methods.data.UserPassStoredData
+import id.walt.ktorauthnz.security.PasswordHash
+import id.walt.ktorauthnz.security.PasswordHashing
 import id.walt.ktorauthnz.sessions.AuthSession
 import id.walt.ktorauthnz.sessions.AuthSessionInformation
 import io.github.smiley4.ktorswaggerui.dsl.routing.post
@@ -20,17 +23,21 @@ data class UserPassCredentials(val username: String, val password: String)
 
 object UserPass : UserPassBasedAuthMethod("userpass") {
 
-    @Serializable
-    data class UserPassStoredData(
-        val password: String,
-    ) : AuthMethodStoredData
+    override val relatedAuthMethodStoredData = UserPassStoredData::class
 
     override suspend fun auth(session: AuthSession, credential: UserPasswordCredential, context: ApplicationCall): AccountIdentifier {
         val identifier = UsernameIdentifier(credential.name)
 
-        val storedData: UserPassStoredData = lookupStoredData(identifier /*context()*/)
+        val storedData: UserPassStoredData = lookupAccountIdentifierStoredData(identifier /*context()*/)
 
-        authCheck(credential.password == storedData.password) { "Invalid password" }
+        val passwordHash = PasswordHash.fromString(storedData.passwordHash ?: error("Missing password hash"))
+        val check = PasswordHashing.check(credential.password, passwordHash)
+
+        authCheck(check.valid) { "Invalid password" }
+        if (check.updated) {
+            val newData = storedData.copy(passwordHash = check.updatedHash!!.toString())
+            KtorAuthnzManager.accountStore.updateAccountIdentifierStoredData(identifier, id, newData)
+        }
 
         return identifier
     }
