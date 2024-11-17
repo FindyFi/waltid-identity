@@ -1,79 +1,19 @@
-# walt.id Identity Docker Environment
+# walt.id Identity Package
 
-This directory contains the Docker Compose configuration that sets up and runs the services and applications of the walt.id Identity Stack.
-You can either run the latest release using pre-built Docker images or build your images locally.
+This package is a docker compose configuration that starts all the services and apps of the identity repo
 
-## Prerequisites
-
-Ensure you have the following tools installed:
-
-- [Docker]()
-- [Docker Compose]()
-
----
-
-## Quick Start with Latest Release Images
-
-If you prefer to run the services using latest release pre-built Docker images, follow these steps:
-
-### Pull the Latest Release Images
-
-Start by pulling the latest release Docker images for the services:
+## Executing The Package
 
 ```bash
 docker-compose pull
-```
-
-This ensures that you're using the most recent release images from the Docker registry.
-
-### Start the Services
-Once the images are pulled, start the services by running:
-```bash
 docker-compose up
 ```
 
-*Note:* If you are facing issues with the containers, try running the following command to remove the existing containers and then run the
+Note: If you are facing issues with the containers, try running the following command to remove the existing containers and then run the
 above command again.
 
-### Stop the Services
 ```bash
 docker-compose down
-```
-
-### Tear down the Services
-```bash
-docker-compose down -v
-```
-
-*Note:*
-The version of the images pulled is controlled by the `VERSION_TAG` in the `.env` file. By default, it is set to latest, which pulls the most recent release of the Docker images. 
-If you prefer to use a specific version, such as a past release, modify the `VERSION_TAG` in the `.env` file before pulling the images.
-
-## Building and Running Services Locally
-
-### Update the VERSION_TAG
-Before building locally, ensure the correct version is specified in the `.env` file. 
-Update the `VERSION_TAG` variable to the desired version value for the local build.
-
-### Build the Docker Images Locally 
-Once the `VERSION_TAG` is set, build the Docker images based on your local changes by running:
-```bash
-docker-compose build
-```
-
-### Start the Services
-```bash
-docker-compose up
-```
-
-### Stop the Services
-```bash
-docker-compose down
-```
-
-### Tear down the Services
-```bash
-docker-compose down -v
 ```
 
 ## Port mapping
@@ -159,6 +99,14 @@ This value will be used by reverse proxy (and services configs, if any).
 
 ## Troubleshooting
 
+---
+
+#### Display of VC verification result on success page of portal doesn't work
+
+We are working on fixing this issue.
+
+---
+
 #### Updating ports doesn't work
 
 Make sure the ports are also updated in:
@@ -173,14 +121,3 @@ Make sure the ports are also updated in:
 - wallet-api/config
     - web.conf
     - db.conf
-
-
-#### Removing the DB volume
-```
-docker volume rm docker-compose_wallet-api-db
-```
-#### DB Backup / Restore
-```
-pg_dump -U your_user_name -h your_host -d your_db_name > backup.sql
-psql -U your_user_name -h your_host -d your_db_name < backup.sql
-```
